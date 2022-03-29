@@ -1,0 +1,112 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Dec 21 20:04:19 2021
+
+@author: KAPADVI3
+"""
+from bs4 import BeautifulSoup
+import pandas as pd
+from collections import defaultdict
+import os
+import time
+from datetime import datetime
+
+print("Hi")
+time.sleep(2)
+folder_location = input("Enter folder location: \n")
+#folder_location = "G:\Projects\Axtria_Oncology\Adjuvant NSCLC\Codes"
+entries = os.scandir(folder_location)
+
+file_list = []
+
+df = pd.DataFrame()
+print("Getting list of files and folders")
+time.sleep(1)    
+
+# Walking a directory tree and printing the names of the directories and files
+for dirpath, dirnames, files in os.walk(folder_location):
+    # print(f'Found directory: {dirpath}')
+    for file_name in files:
+        if file_name.endswith(".yxmd"):
+            file_url = dirpath
+            file_url = file_url + "\\" + file_name
+            file_list.append(file_url)
+time.sleep(1)
+print("Capturing Input and Output files")
+
+for url in file_list:
+    # Reading the data inside the xml
+    # url = "G:\\Projects\\Axtria_Oncology\\Adjuvant NSCLC\\Codes\\2. Robust Population Creation\\2. Robust_population_part_2.yxmd"
+    with open(url, 'r') as f:
+    	File_data = f.read()
+    
+    # Passing the stored data inside
+    # the beautifulsoup parser, storing
+    # the returned object
+    Bs_data = BeautifulSoup(File_data, "xml")
+    Input_file_location = []
+    Output_file_location = []
+    Input_file_name = []
+    Output_file_name = []
+    
+    # Finding all instances of tag
+    Input_tags = Bs_data.find_all('GuiSettings', {'Plugin':'AlteryxBasePluginsGui.DbFileInput.DbFileInput'})
+    Input_String = ""
+    for Input_tag in Input_tags:
+        Input_Parent_tag = Input_tag.parent
+        Input_File_tag = Input_Parent_tag.find('File')
+        #print("Input file :- "+Input_File_tag.text)
+        Input_file_location.append(Input_File_tag.text)
+        Input_String = Input_File_tag.text
+        Input_file_name.append(Input_String.split("\\")[-1])
+        
+    
+    Output_tags = Bs_data.find_all('GuiSettings', {'Plugin':'AlteryxBasePluginsGui.DbFileOutput.DbFileOutput'})
+    for Output_tag in Output_tags:
+        Output_Parent_tag = Output_tag.parent
+        Output_File_tag = Output_Parent_tag.find('File')
+        #print("Output file :- "+Output_File_tag.text)
+        Output_file_location.append(Output_File_tag.text)
+        Output_String = Output_File_tag.text
+        Output_file_name.append(Output_String.split("\\")[-1])       
+    
+    data = defaultdict(list)
+    
+    for i in range(0,max(len(Input_file_name),len(Output_file_name))):
+        
+        data['Workflow_name'] = url.split("\\")[-1]
+        data['Workflow_location'] = url
+        
+        if i < len(Input_file_name):
+            data['Input_file_location'] = Input_file_location[i]
+            data['Input_file_name'] = Input_file_name[i]
+        else:
+            data['Input_file_location'] = ""
+            data['Input_file_name'] = ""
+            
+        if i < len(Output_file_name):
+            data['Output_file_location'] = Output_file_location[i]
+            data['Output_file_name'] = Output_file_name[i]
+        else:
+            data['Output_file_location'] = ""
+            data['Output_file_name'] = ""
+              
+        df = df.append(data,True)
+    f.close()
+    
+df = df[['Workflow_name','Workflow_location','Input_file_name','Input_file_location','Output_file_name','Output_file_location']]
+output_location = input("Enter output file location: \n")
+
+now = datetime.now()
+
+current_date = now.strftime("%Y%m%d")
+output_url= output_location + "\\Documentation_"+current_date+".csv"
+
+print("Writing data to file")
+time.sleep(2)
+df.to_csv(output_url, index = False)
+
+print("Done...")
+time.sleep(1)
+print("Bye")
+    
